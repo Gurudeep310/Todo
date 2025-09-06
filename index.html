@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Todo list</title>
+    <link
+      href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,700,900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="Todo.css" />
+    <script defer src="Todo.js"></script>
+  </head>
+
+  <body>
+    <h1 class="title">Stuff I need to do</h1>
+
+    <div class="all-tasks">
+      <h2 class="task-list-title">My lists</h2>
+      <ul class="task-list" data-lists></ul>
+
+      <form action="" data-new-list-form>
+        <input 
+          type="text"
+          class="new list"
+          data-new-list-input
+          placeholder="new list name"
+          aria-label="new list name"
+        />
+        <button class="btn create" aria-label="create new list">+</button>
+      </form>
+    </div>
+
+    <div class="todo-list" data-list-display-container>
+      <div class="todo-header">
+        <h2 class="list-title" data-list-title>YouTube</h2>
+        <p class="task-count" data-list-count>3 tasks remaining</p>
+      </div>
+
+      <div class="todo-body">
+        <div class="tasks" data-tasks></div>
+
+        <div class="new-task-creator">
+            <form action="" data-new-task-form>
+                <input 
+                  type="text"
+                  data-new-task-input
+                  class="new task"
+                  placeholder="new task name"
+                  aria-label="new task name"
+                />
+                <button class="btn create" aria-label="create new task">+</button>
+              </form>
+        </div>
+
+        <div class="delete-stuff">
+          <button class="btn delete" data-clear-complete-tasks-button>Clear completed tasks</button>
+          <button class="btn delete" data-delete-list-button>Delete list</button>
+        </div>
+        <!--
+        <div>
+          <label for="start-time">Enter the timer starting minutes:</label>
+          <input type="number" id="start-time" name="start-time"><br><br>
+          <label for="final-time">Enter the final time minutes.seconds:</label>
+          <input type="text" id="final-time" name="final-time"><br><br>
+          <button onclick="calculateTime()">Calculate</button><br><br>
+          <div id="output"></div>
+          <script>
+              function calculateTime() {
+                  let total_time_sec = parseInt(document.getElementById("start-time").value) * 60;
+                  let time_final = document.getElementById("final-time").value.split('.');
+                  let time_final_min = parseInt(time_final[0]);
+                  let time_final_sec = parseInt(time_final[1]);
+                  let total_seconds_final = time_final_min * 60 + time_final_sec;
+                  let elapsed_time = total_time_sec - total_seconds_final;
+                  let minutes_spent = parseInt(elapsed_time/60);
+                  let seconds_spent = parseInt(elapsed_time%60);
+                  document.getElementById("output").innerHTML = "Total time spent: " + minutes_spent + "." + seconds_spent;
+              }
+          </script>
+        </div>
+      -->
+      </div>
+    </div>
+    <template id="task-template">
+      <div class="task">
+        <input type="checkbox" />
+        <label>
+          <span class="custom-checkbox"></span>
+        </label>
+      </div>
+    </template>
+  </body>
+</html>

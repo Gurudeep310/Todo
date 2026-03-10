@@ -119,7 +119,8 @@
   }
   
   .new.task {
-    margin-bottom: 0;
+    flex: 1; /* Name input takes up remaining space */
+    min-width: 150px;
   }
   
   .active-list {
@@ -172,10 +173,30 @@
   }
   
   .task {
-    position: relative;
-    margin-bottom: 1.25em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 5px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    cursor: grab;
   }
-  
+
+  .task-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .task-details {
+    display: flex;
+    flex-direction: column; /* Stack priority and date for a cleaner look */
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .task.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+  }
   .task::after {
     content: "";
     position: absolute;
@@ -244,3 +265,51 @@
     bottom: -35px;
     color: var(--clr-light);
   }
+  .priority-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+
+.priority-low { background: #d1e7dd; color: #0f5132; }
+.priority-medium { background: #fff3cd; color: #664d03; }
+.priority-high { background: #f8d7da; color: #842029; }
+
+.due-date-display {
+    font-size: 0.7rem;
+    color: #888;
+}
+
+.due-soon {
+    color: #d9534f;
+    font-weight: bold;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Better layout for the task creator form */
+[data-new-task-form] {
+  display: flex;
+  flex-wrap: wrap; /* Allows inputs to wrap on small screens */
+  gap: 15px;
+  align-items: center;
+  background: rgba(0,0,0,0.05);
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.new.task-priority, .new.task-date {
+    font-size: 0.8rem;
+    border: none;
+    border-bottom: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    outline: none;
+    cursor: pointer;
+}

@@ -42,16 +42,22 @@
         <div class="tasks" data-tasks></div>
 
         <div class="new-task-creator">
-            <form action="" data-new-task-form>
-                <input 
+          <form action="" data-new-task-form>
+              <input 
                   type="text"
                   data-new-task-input
                   class="new task"
                   placeholder="new task name"
                   aria-label="new task name"
-                />
-                <button class="btn create" aria-label="create new task">+</button>
-              </form>
+              />
+              <select data-new-task-priority class="new task-priority">
+                  <option value="low">Low</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="high">High</option>
+              </select>
+              <input type="date" data-new-task-date class="new task-date" />
+              <button class="btn create" aria-label="create new task">+</button>
+          </form>
         </div>
 
         <div class="delete-stuff">
@@ -84,11 +90,18 @@
       </div>
     </div>
     <template id="task-template">
-      <div class="task">
-        <input type="checkbox" />
-        <label>
-          <span class="custom-checkbox"></span>
-        </label>
+      <div class="task" draggable="true">
+        <div class="task-main">
+          <input type="checkbox" />
+          <label>
+            <span class="custom-checkbox"></span>
+            <span class="task-name-text"></span>
+          </label>
+        </div>
+        <div class="task-details">
+            <span class="priority-badge"></span>
+            <span class="due-date-display"></span>
+        </div>
       </div>
     </template>
   </body>

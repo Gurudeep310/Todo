@@ -1,108 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>Todo list</title>
-    <link
-      href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,700,900&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="Todo.css" />
-    <script defer src="Todo.js"></script>
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>The Board — a todo list that feels like a desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="Todo.css" />
+  <script defer src="Todo.js"></script>
+</head>
+<body>
 
-  <body>
-    <h1 class="title">Stuff I need to do</h1>
+<div class="app-shell">
+  <header class="masthead">
+    <div>
+      <h1>The Board</h1>
+      <p class="tagline">a desk for the things you keep meaning to do</p>
+    </div>
+  </header>
 
-    <div class="all-tasks">
-      <h2 class="task-list-title">My lists</h2>
-      <ul class="task-list" data-lists></ul>
-
-      <form action="" data-new-list-form>
-        <input 
-          type="text"
-          class="new list"
-          data-new-list-input
-          placeholder="new list name"
-          aria-label="new list name"
-        />
-        <button class="btn create" aria-label="create new list">+</button>
+  <div class="layout">
+    <nav class="rolodex" aria-label="Your lists">
+      <h2 id="lists-heading">Lists</h2>
+      <ul class="list-tabs" data-lists role="tablist" aria-labelledby="lists-heading"></ul>
+      <form class="new-list-form" data-new-list-form>
+        <label class="sr-only" for="new-list-input">New list name</label>
+        <input id="new-list-input" type="text" data-new-list-input placeholder="new list…" autocomplete="off" />
+        <button class="pin-btn" type="submit" aria-label="Create list">+</button>
       </form>
+    </nav>
+
+    <main class="corkboard" data-board id="board-panel" role="tabpanel" aria-labelledby="lists-heading" tabindex="-1">
+      <!-- populated by script.js -->
+    </main>
+  </div>
+</div>
+
+<div class="toast-rack" data-toast-rack aria-live="polite"></div>
+
+<template id="empty-board-template">
+  <div class="empty-board">
+    <p>the board is bare</p>
+    <span>pin a list on the left, or start a new one</span>
+  </div>
+</template>
+
+<template id="task-card-template">
+  <div class="card" draggable="true">
+    <span class="pin"></span>
+    <input type="checkbox" />
+    <label>
+      <span class="check-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M4 12.5L9.5 18L20 6"
+                stroke="white"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="card-body">
+        <span class="task-name"></span>
+        <span class="card-meta">
+          <span class="badge"></span>
+          <span class="due"></span>
+        </span>
+      </span>
+    </label>
+
+    <span class="stamp">DONE</span>
+
+    <div class="card-actions">
+      <button class="icon-btn" data-edit-btn type="button">edit</button>
+      <button class="icon-btn" data-delete-btn type="button">remove</button>
     </div>
+  </div>
+</template>
 
-    <div class="todo-list" data-list-display-container>
-      <div class="todo-header">
-        <h2 class="list-title" data-list-title>YouTube</h2>
-        <p class="task-count" data-list-count>3 tasks remaining</p>
-      </div>
+<template id="toast-template">
+  <div class="toast">
+    <span class="toast-text"></span>
+  </div>
+</template>
 
-      <div class="todo-body">
-        <div class="tasks" data-tasks></div>
-
-        <div class="new-task-creator">
-          <form action="" data-new-task-form>
-              <input 
-                  type="text"
-                  data-new-task-input
-                  class="new task"
-                  placeholder="new task name"
-                  aria-label="new task name"
-              />
-              <select data-new-task-priority class="new task-priority">
-                  <option value="low">Low</option>
-                  <option value="medium" selected>Medium</option>
-                  <option value="high">High</option>
-              </select>
-              <input type="date" data-new-task-date class="new task-date" />
-              <button class="btn create" aria-label="create new task">+</button>
-          </form>
-        </div>
-
-        <div class="delete-stuff">
-          <button class="btn delete" data-clear-complete-tasks-button>Clear completed tasks</button>
-          <button class="btn delete" data-delete-list-button>Delete list</button>
-        </div>
-        <!--
-        <div>
-          <label for="start-time">Enter the timer starting minutes:</label>
-          <input type="number" id="start-time" name="start-time"><br><br>
-          <label for="final-time">Enter the final time minutes.seconds:</label>
-          <input type="text" id="final-time" name="final-time"><br><br>
-          <button onclick="calculateTime()">Calculate</button><br><br>
-          <div id="output"></div>
-          <script>
-              function calculateTime() {
-                  let total_time_sec = parseInt(document.getElementById("start-time").value) * 60;
-                  let time_final = document.getElementById("final-time").value.split('.');
-                  let time_final_min = parseInt(time_final[0]);
-                  let time_final_sec = parseInt(time_final[1]);
-                  let total_seconds_final = time_final_min * 60 + time_final_sec;
-                  let elapsed_time = total_time_sec - total_seconds_final;
-                  let minutes_spent = parseInt(elapsed_time/60);
-                  let seconds_spent = parseInt(elapsed_time%60);
-                  document.getElementById("output").innerHTML = "Total time spent: " + minutes_spent + "." + seconds_spent;
-              }
-          </script>
-        </div>
-      -->
-      </div>
-    </div>
-    <template id="task-template">
-      <div class="task" draggable="true">
-        <div class="task-main">
-          <input type="checkbox" />
-          <label>
-            <span class="custom-checkbox"></span>
-            <span class="task-name-text"></span>
-          </label>
-        </div>
-        <div class="task-details">
-            <span class="priority-badge"></span>
-            <span class="due-date-display"></span>
-        </div>
-      </div>
-    </template>
-  </body>
+</body>
 </html>

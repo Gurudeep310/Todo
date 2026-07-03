@@ -10,6 +10,9 @@
   --pin-low: #4C8C6B;
   --pin-medium: #D7A63A;
   --pin-high: #C1442C;
+  --soon: #C96A56;
+  --soon-bg: #F9E6E1;
+  --soon-border: #E5B8AE;
   --accent: #C1442C;
   --accent-ink: #FBEFE7;
   --focus: #E9B44C;
@@ -68,7 +71,7 @@ header.masthead .tagline{
 .list-tabs{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap: 0.4rem; }
 
 .list-tab{
-  position:relative; display:flex; align-items:center; justify-content:space-between; gap:0.5rem;
+  position:relative; display:flex; align-items:center; justify-content:space-between; gap:0.35rem;
   padding: 0.55rem 0.7rem 0.55rem 0.85rem; background: rgba(243,236,217,0.06);
   border: 1px solid transparent; border-radius: 6px 3px 3px 6px; cursor:pointer;
   font-family:'Caveat', cursive; font-size: 1.28rem; color: rgba(243,236,217,0.82);
@@ -84,14 +87,35 @@ header.masthead .tagline{
   box-shadow: 0 0 0 2px var(--focus), -3px 3px 0 rgba(0,0,0,0.22);
   transform: translateX(3px) scale(1.03);
 }
+.list-tab .tab-name{
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+  padding-right: 0.25em;
+}
 .list-tab .count-chip{
-  font-family:'Space Mono', monospace; font-size: 0.62rem; background: rgba(0,0,0,0.18);
+  flex-shrink:0; font-family:'Space Mono', monospace; font-size: 0.62rem; background: rgba(0,0,0,0.18);
   padding: 0.12rem 0.4rem; border-radius: 20px; color: inherit; opacity:0.75;
   transition: transform 200ms ease;
 }
 .list-tab.active .count-chip{ background: rgba(43,38,32,0.12); }
 .count-chip.bump{ animation: chipBump 320ms ease; }
 @keyframes chipBump{ 0%{transform:scale(1);} 40%{transform:scale(1.35);} 100%{transform:scale(1);} }
+
+.rename-btn{
+  flex-shrink:0; border:none; background:none; cursor:pointer; color: inherit;
+  font-size: 0.85rem; line-height:1; padding: 0.05rem 0.15rem; border-radius: 3px;
+  opacity:0; transition: opacity 150ms ease, background 150ms ease;
+}
+.list-tab:hover .rename-btn,
+.list-tab:focus-within .rename-btn,
+.rename-btn:focus-visible{ opacity:0.55; }
+.rename-btn:hover, .rename-btn:focus-visible{ opacity:1; background: rgba(0,0,0,0.12); }
+
+.tab-rename-form{ flex:1; min-width:0; display:flex; }
+.tab-name-input{
+  width:100%; min-width:0; background: var(--card-hi); color: var(--ink);
+  border: 1px solid var(--accent); border-radius: 3px; padding: 0.1rem 0.6rem 0.1rem 0.4rem;
+  font-family:'Caveat', cursive; font-size: 1.22rem; overflow: visible;
+}
 
 @keyframes tabIn{
   from{ opacity:0; transform: translateX(-12px) scale(0.94); }
@@ -153,6 +177,17 @@ header.masthead .tagline{
   display:flex; align-items:center; gap: 0.9rem; font-family:'Space Mono', monospace;
   font-size: 0.7rem; color: rgba(243,236,217,0.6);
 }
+
+.due-soon-control{
+  display:flex; align-items:center; gap: 0.4rem; cursor:default;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.due-soon-control input[type="number"]{
+  width: 2.4rem; text-align:center; background: rgba(243,236,217,0.08);
+  border: 1px solid rgba(243,236,217,0.25); border-radius: 3px; color: var(--card-hi);
+  font-family:'Space Mono', monospace; font-size: 0.7rem; padding: 0.15rem 0.2rem;
+}
+.due-soon-control input[type="number"]:focus{ border-color: var(--focus); }
 
 .progress-track{
   height: 5px; border-radius: 3px; background: rgba(243,236,217,0.14);
@@ -281,40 +316,75 @@ input[type="checkbox"]:checked ~ label .task-name{ text-decoration: line-through
 
 .task-name-input{
   font: inherit; color: var(--ink); background: var(--card-hi); border: 1px solid var(--card-line);
-  border-radius: 3px; padding: 0.15rem 0.4rem; width: 100%;
+  border-radius: 3px; padding: 0.15rem 0.55rem 0.15rem 0.4rem; width: 100%;
 }
 
 .card-meta{ display:flex; align-items:center; gap: 0.5rem; margin-top: 0.35rem; flex-wrap:wrap; }
 .badge{
   font-family:'Space Mono', monospace; font-size: 0.6rem; text-transform: uppercase;
-  letter-spacing: 0.06em; padding: 0.16rem 0.4rem; border-radius: 3px;
+  letter-spacing: 0.06em; padding: 0.16rem 0.55rem 0.16rem 0.45rem; border-radius: 20px;
+  display:inline-flex; align-items:center; gap: 0.35rem; border: 1px solid transparent;
 }
-.badge.priority-low{ background:#DCEDE1; color:#2E6B4B; }
-.badge.priority-medium{ background:#F3E3B7; color:#7A5A12; }
-.badge.priority-high{ background:#F1D0C6; color:#8C3319; }
-
-.due{ font-family:'Space Mono', monospace; font-size: 0.66rem; color: var(--ink-soft); display:inline-flex; align-items:center; gap: 0.3rem; }
-.due.due-soon{ color: var(--pin-high); font-weight:700; animation: pulse 2s infinite; }
-.due.overdue{ color: var(--pin-high); font-weight:700; }
-.due.overdue::before{ content:"⚠ "; }
-@keyframes pulse{ 0%{opacity:1;} 50%{opacity:0.55;} 100%{opacity:1;} }
-
-.stamp{
-  position:absolute; right: 10px; top: -10px; font-family:'Space Mono', monospace;
-  font-size: 0.62rem; font-weight:700; color: var(--pin-high); border: 2px solid var(--pin-high);
-  background: var(--card-hi); border-radius: 3px; padding: 0.1rem 0.35rem; transform: rotate(8deg) scale(1);
-  letter-spacing: 0.06em; opacity:0; pointer-events:none; z-index: 2;
-  box-shadow: 0 3px 5px rgba(0,0,0,0.25);
+.badge::before{
+  content:""; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  opacity: 0.85; flex-shrink: 0;
 }
-input[type="checkbox"]:checked ~ .stamp{ opacity: 0.85; }
-.stamp.stamp-pop{ animation: stampPop 380ms cubic-bezier(.3,.7,.3,1.5); }
-@keyframes stampPop{
-  0%{ opacity:0; transform: rotate(8deg) scale(2.4); }
-  55%{ opacity:0.95; transform: rotate(8deg) scale(0.85); }
-  100%{ opacity:0.85; transform: rotate(8deg) scale(1); }
+.badge.priority-low{ background:#DCEDE1; color:#2E6B4B; border-color:#B7DCC3; }
+.badge.priority-medium{ background:#F3E3B7; color:#7A5A12; border-color:#E3C374; }
+.badge.priority-high{
+  background:#F1D0C6; color:#8C3319; border-color:#E2A48F; font-weight: 700;
+}
+
+.due{
+  font-family:'Space Mono', monospace; font-size: 0.64rem; color: var(--ink);
+  display:inline-flex; align-items:center; gap: 0.35rem; padding: 0.16rem 0.55rem 0.16rem 0.45rem;
+  border-radius: 20px; background: rgba(43,38,32,0.09); border: 1px solid rgba(43,38,32,0.16);
+}
+.due::before{
+  content:""; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  opacity: 0.5; flex-shrink: 0;
+}
+
+.due.due-soon{
+  color: var(--soon); background: var(--soon-bg); border-color: var(--soon-border); font-weight: 700;
+  animation: dueSoonGlow 2.4s ease-in-out infinite;
+}
+.due.due-soon::before{
+  background: var(--soon); opacity: 1;
+  animation: dueDotPulse 2.4s ease-in-out infinite;
+}
+@keyframes dueSoonGlow{
+  0%, 100%{ box-shadow: 0 0 0 0 rgba(44,122,140,0); }
+  50%{ box-shadow: 0 0 0 5px rgba(44,122,140,0.22); }
+}
+@keyframes dueDotPulse{
+  0%, 100%{ transform: scale(1); opacity: 1; }
+  50%{ transform: scale(1.7); opacity: 0.45; }
+}
+
+.due.overdue{
+  color: var(--accent-ink); background: var(--pin-high); border-color: var(--pin-high); font-weight: 700;
+}
+.due.overdue::before{
+  content: "⚠"; width: auto; height: auto; background: none; opacity: 1; font-size: 0.7rem; line-height: 1;
 }
 
 .card-actions{ display:flex; flex-direction:column; gap: 0.35rem; align-items:flex-end; }
+
+.stamp{
+  display:none; font-family:'Space Mono', monospace;
+  font-size: 0.62rem; font-weight:700; color: var(--pin-high); border: 2px solid var(--pin-high);
+  background: var(--card-hi); border-radius: 3px; padding: 0.1rem 0.35rem; transform: rotate(-2deg);
+  letter-spacing: 0.06em; pointer-events:none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+input[type="checkbox"]:checked ~ .card-actions .stamp{ display: inline-block; }
+.stamp.stamp-pop{ animation: stampPop 380ms cubic-bezier(.3,.7,.3,1.5); }
+@keyframes stampPop{
+  0%{ opacity:0; transform: rotate(-2deg) scale(2.2); }
+  55%{ opacity:1; transform: rotate(-2deg) scale(0.85); }
+  100%{ opacity:1; transform: rotate(-2deg) scale(1); }
+}
 .icon-btn{
   background:none; border:none; cursor:pointer; color: var(--ink-soft); font-family:'Space Mono', monospace;
   font-size: 0.62rem; text-transform:uppercase; letter-spacing: 0.05em; padding: 0.1rem 0.15rem;

@@ -3,6 +3,7 @@
 
   const LS_LISTS = "board.lists";
   const LS_SELECTED = "board.selectedListId";
+  const LS_DUE_SOON = "board.dueSoonDays";
 
   // ---------- DOM refs ----------
   const listsContainer = document.querySelector('[data-lists]');
@@ -20,10 +21,18 @@
   let lists = loadLists();
   let selectedListId = localStorage.getItem(LS_SELECTED) || (lists[0] && lists[0].id) || null;
   let editingTaskId = null;
+  let renamingListId = null;    // list currently in rename mode
   let justAddedTaskId = null;   // triggers card-enter animation
   let justCompletedTaskId = null; // triggers stamp-pop + confetti
   let newTabId = null;          // triggers tab-enter animation
   let draggingTaskId = null;    // task currently being dragged, for cross-list drops
+  let dueSoonDays = loadDueSoonDays();
+
+  function loadDueSoonDays() {
+    const raw = localStorage.getItem(LS_DUE_SOON);
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 2;
+  }
 
   function loadLists() {
     try {
@@ -140,16 +149,56 @@
     });
   }
 
+  function focusRenameButton(listId) {
+    requestAnimationFrame(() => {
+      const el = listsContainer.querySelector(`[data-list-id="${listId}"] [data-rename-btn]`);
+      if (el) el.focus();
+    });
+  }
+
   // ---------- List sidebar events ----------
   listsContainer.addEventListener('click', e => {
+    const renameBtn = e.target.closest('[data-rename-btn]');
+    if (renameBtn) {
+      const tab = renameBtn.closest('.list-tab');
+      startRenaming(tab.dataset.listId);
+      return;
+    }
     const tab = e.target.closest('.list-tab');
     if (!tab) return;
     selectTab(tab, false);
   });
 
+  listsContainer.addEventListener('dblclick', e => {
+    const nameEl = e.target.closest('.tab-name');
+    if (!nameEl) return;
+    const tab = nameEl.closest('.list-tab');
+    if (!tab) return;
+    startRenaming(tab.dataset.listId);
+  });
+
   listsContainer.addEventListener('keydown', e => {
+    // While a rename input is focused, let it handle its own keys except Escape.
+    if (e.target.matches('.tab-name-input')) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        const listId = renamingListId;
+        renamingListId = null;
+        render();
+        focusRenameButton(listId);
+      }
+      return;
+    }
+
     const tab = e.target.closest('.list-tab');
     if (!tab) return;
+
+    if (e.key === 'F2') {
+      e.preventDefault();
+      startRenaming(tab.dataset.listId);
+      return;
+    }
+
     const tabs = [...listsContainer.querySelectorAll('.list-tab')];
     const idx = tabs.indexOf(tab);
 
@@ -183,6 +232,31 @@
     if (keepFocus) {
       const newTab = listsContainer.querySelector(`[data-list-id="${selectedListId}"]`);
       if (newTab) newTab.focus();
+    }
+  }
+
+  // ---------- Rename a list ----------
+  function startRenaming(listId) {
+    renamingListId = listId;
+    editingTaskId = null;
+    render();
+  }
+
+  function commitRename(listId, rawName) {
+    const list = lists.find(l => l.id === listId);
+    renamingListId = null;
+    if (!list) { render(); return; }
+    const name = rawName.trim();
+    if (name && name !== list.name) {
+      list.name = name;
+      persist();
+      render();
+      focusRenameButton(listId);
+      showToast(`Renamed list to "${name}"`);
+    } else {
+      // empty or unchanged — just drop out of rename mode
+      render();
+      focusRenameButton(listId);
     }
   }
 
@@ -353,6 +427,15 @@
   });
 
   board.addEventListener('change', e => {
+    if (e.target.matches('[data-due-soon-input]')) {
+      const val = parseInt(e.target.value, 10);
+      dueSoonDays = Number.isFinite(val) && val >= 0 ? val : 0;
+      e.target.value = dueSoonDays;
+      localStorage.setItem(LS_DUE_SOON, String(dueSoonDays));
+      refreshDueHighlighting();
+      return;
+    }
+
     if (e.target.matches('.card input[type="checkbox"]')) {
       const card = e.target.closest('.card');
       const list = getSelectedList();
@@ -392,6 +475,21 @@
       editingTaskId = null;
       render();
     }
+  });
+
+  // ---------- List rename form + blur handling ----------
+  listsContainer.addEventListener('submit', e => {
+    if (!e.target.matches('[data-rename-form]')) return;
+    e.preventDefault();
+    const input = e.target.querySelector('.tab-name-input');
+    commitRename(e.target.closest('.list-tab').dataset.listId, input.value);
+  });
+
+  listsContainer.addEventListener('focusout', e => {
+    const form = e.target.closest('[data-rename-form]');
+    if (!form || !renamingListId) return;
+    if (form.contains(e.relatedTarget)) return;
+    form.requestSubmit();
   });
 
   // ---------- Drag & drop reorder ----------
@@ -481,6 +579,7 @@
     listsContainer.innerHTML = '';
     lists.forEach(list => {
       const isActive = list.id === selectedListId;
+      const isRenaming = list.id === renamingListId;
       const li = document.createElement('li');
       li.className = 'list-tab' + (isActive ? ' active' : '');
       li.dataset.listId = list.id;
@@ -490,15 +589,49 @@
       li.tabIndex = isActive ? 0 : -1;
       if (list.id === newTabId) li.classList.add('tab-enter');
 
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = list.name;
-      const remaining = list.tasks.filter(t => !t.complete).length;
-      const chip = document.createElement('span');
-      chip.className = 'count-chip';
-      chip.textContent = remaining;
+      if (isRenaming) {
+        const form = document.createElement('form');
+        form.className = 'tab-rename-form';
+        form.setAttribute('data-rename-form', '');
 
-      li.appendChild(nameSpan);
-      li.appendChild(chip);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'tab-name-input';
+        input.value = list.name;
+        input.setAttribute('aria-label', `Rename list "${list.name}"`);
+        input.autocomplete = 'off';
+
+        form.appendChild(input);
+        li.appendChild(form);
+        li.tabIndex = -1;
+
+        requestAnimationFrame(() => {
+          input.focus();
+          input.select();
+        });
+      } else {
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'tab-name';
+        nameSpan.textContent = list.name;
+
+        const renameBtn = document.createElement('button');
+        renameBtn.type = 'button';
+        renameBtn.className = 'rename-btn';
+        renameBtn.setAttribute('data-rename-btn', '');
+        renameBtn.setAttribute('aria-label', `Rename "${list.name}"`);
+        renameBtn.title = 'Rename list';
+        renameBtn.textContent = '✎';
+
+        const remaining = list.tasks.filter(t => !t.complete).length;
+        const chip = document.createElement('span');
+        chip.className = 'count-chip';
+        chip.textContent = remaining;
+
+        li.appendChild(nameSpan);
+        li.appendChild(renameBtn);
+        li.appendChild(chip);
+      }
+
       listsContainer.appendChild(li);
     });
     newTabId = null;
@@ -523,6 +656,11 @@
       <h2></h2>
       <div class="meta">
         <span data-count></span>
+        <label class="due-soon-control">
+          <span>highlight due within</span>
+          <input type="number" min="0" max="30" step="1" data-due-soon-input value="${dueSoonDays}" aria-label="Highlight tasks due within this many days" />
+          <span>days</span>
+        </label>
         <button class="text-btn danger" data-delete-list type="button">delete this list</button>
       </div>
     `;
@@ -646,12 +784,30 @@
       const daysDiff = (dueDate - today) / (1000 * 3600 * 24);
       due.textContent = formatDate(task.dueDate);
       if (daysDiff < 0) due.classList.add('overdue');
-      else if (daysDiff <= 2) due.classList.add('due-soon');
+      else if (daysDiff <= dueSoonDays) due.classList.add('due-soon');
     } else {
       due.remove();
     }
 
     return frag;
+  }
+
+  function refreshDueHighlighting() {
+    const list = getSelectedList();
+    if (!list) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    list.tasks.forEach(task => {
+      if (!task.dueDate) return;
+      const card = board.querySelector(`.card[data-task-id="${task.id}"]`);
+      const due = card && card.querySelector('.due');
+      if (!due) return;
+      const dueDate = new Date(task.dueDate + 'T00:00:00');
+      const daysDiff = (dueDate - today) / (1000 * 3600 * 24);
+      due.classList.remove('overdue', 'due-soon');
+      if (daysDiff < 0) due.classList.add('overdue');
+      else if (daysDiff <= dueSoonDays) due.classList.add('due-soon');
+    });
   }
 
   function formatDate(iso) {

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>The Board — a todo list that feels like a desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="Todo.css" />
+  <script defer src="Todo.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="masthead">
+    <div>
+      <h1>The Board</h1>
+      <p class="tagline">a desk for the things you keep meaning to do</p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="rolodex" aria-label="Your lists">
+      <h2 id="lists-heading">Lists</h2>
+      <ul class="list-tabs" data-lists role="tablist" aria-labelledby="lists-heading"></ul>
+      <form class="new-list-form" data-new-list-form>
+        <label class="sr-only" for="new-list-input">New list name</label>
+        <input id="new-list-input" type="text" data-new-list-input placeholder="new list…" autocomplete="off" />
+        <button class="pin-btn" type="submit" aria-label="Create list">+</button>
+      </form>
+    </nav>
+
+    <main class="corkboard" data-board id="board-panel" role="tabpanel" aria-labelledby="lists-heading" tabindex="-1">
+      <!-- populated by script.js -->
+    </main>
+  </div>
+</div>
+
+<div class="toast-rack" data-toast-rack aria-live="polite"></div>
+
+<template id="empty-board-template">
+  <div class="empty-board">
+    <p>the board is bare</p>
+    <span>pin a list on the left, or start a new one</span>
+  </div>
+</template>
+
+<template id="task-card-template">
+  <div class="card" draggable="true">
+    <span class="pin"></span>
+    <input type="checkbox" />
+    <label>
+      <span class="check-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M4 12.5L9.5 18L20 6"
+                stroke="white"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="card-body">
+        <span class="task-name"></span>
+        <span class="card-meta">
+          <span class="badge"></span>
+          <span class="due"></span>
+        </span>
+      </span>
+    </label>
+
+    <div class="card-actions">
+      <span class="stamp">DONE</span>
+      <button class="icon-btn" data-edit-btn type="button">edit</button>
+      <button class="icon-btn" data-delete-btn type="button">remove</button>
+    </div>
+  </div>
+</template>
+
+<template id="toast-template">
+  <div class="toast">
+    <span class="toast-text"></span>
+  </div>
+</template>
+
+</body>
+</html>

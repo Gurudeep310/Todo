@@ -4,6 +4,7 @@
   const LS_LISTS = "board.lists";
   const LS_SELECTED = "board.selectedListId";
   const LS_DUE_SOON = "board.dueSoonDays";
+  const LS_SORT = "board.sortMode";
 
   // ---------- DOM refs ----------
   const listsContainer = document.querySelector('[data-lists]');
@@ -21,12 +22,26 @@
   let lists = loadLists();
   let selectedListId = localStorage.getItem(LS_SELECTED) || (lists[0] && lists[0].id) || null;
   let editingTaskId = null;
-  let renamingListId = null;    // list currently in rename mode
-  let justAddedTaskId = null;   // triggers card-enter animation
+  let renamingListId = null;      // list currently in rename mode
+  let justAddedTaskId = null;     // triggers card-enter animation
   let justCompletedTaskId = null; // triggers stamp-pop + confetti
-  let newTabId = null;          // triggers tab-enter animation
-  let draggingTaskId = null;    // task currently being dragged, for cross-list drops
+  let newTabId = null;            // triggers tab-enter animation
+  let draggingTaskId = null;      // task currently being dragged, for cross-list drops
+  let draggingListId = null;      // list tab currently being dragged, for reordering lists
   let dueSoonDays = loadDueSoonDays();
+  let sortMode = localStorage.getItem(LS_SORT) || 'manual'; // 'manual' | 'due-asc' | 'due-desc'
+  let dueSoonPopoverOpen = false;
+
+  const SORT_ICON = {
+    manual: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>',
+    'due-asc': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="M11 12h4"/><path d="M11 16h7"/><path d="M11 20h10"/></svg>',
+    'due-desc': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h10"/><path d="M11 8h7"/><path d="M11 12h4"/></svg>'
+  };
+  const SORT_TITLE = {
+    manual: 'Manual order — click to sort by due date, soonest first',
+    'due-asc': 'Sorted: soonest due first — click to sort latest first',
+    'due-desc': 'Sorted: latest due first — click to return to manual order'
+  };
 
   function loadDueSoonDays() {
     const raw = localStorage.getItem(LS_DUE_SOON);
@@ -156,6 +171,13 @@
     });
   }
 
+  function focusDueSoonToggle() {
+    requestAnimationFrame(() => {
+      const el = board.querySelector('[data-due-soon-toggle]');
+      if (el) el.focus();
+    });
+  }
+
   // ---------- List sidebar events ----------
   listsContainer.addEventListener('click', e => {
     const renameBtn = e.target.closest('[data-rename-btn]');
@@ -260,8 +282,34 @@
     }
   }
 
-  // ---------- Drag a task card onto a list tab to move it there ----------
+  // ---------- Drag a list tab to reorder lists, or drag a task card onto a list tab to move it there ----------
+  listsContainer.addEventListener('dragstart', e => {
+    const tab = e.target.closest('.list-tab');
+    if (!tab || tab.draggable === false) return;
+    tab.classList.add('dragging');
+    draggingListId = tab.dataset.listId;
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', tab.dataset.listId); } catch (err) {}
+  });
+
+  listsContainer.addEventListener('dragend', e => {
+    const tab = e.target.closest('.list-tab');
+    if (tab) tab.classList.remove('dragging');
+    draggingListId = null;
+  });
+
   listsContainer.addEventListener('dragover', e => {
+    if (draggingListId) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const dragging = listsContainer.querySelector('.list-tab.dragging');
+      if (!dragging) return;
+      const after = getListDragAfterElement(listsContainer, e.clientY);
+      if (after == null) listsContainer.appendChild(dragging);
+      else listsContainer.insertBefore(dragging, after);
+      return;
+    }
+
     if (!draggingTaskId) return;
     const tab = e.target.closest('.list-tab');
     if (!tab) return;
@@ -276,12 +324,30 @@
   });
 
   listsContainer.addEventListener('drop', e => {
+    if (draggingListId) {
+      e.preventDefault();
+      const orderedIds = [...listsContainer.querySelectorAll('.list-tab')].map(li => li.dataset.listId);
+      lists.sort((a, b) => orderedIds.indexOf(a.id) - orderedIds.indexOf(b.id));
+      persist();
+      return;
+    }
+
     const tab = e.target.closest('.list-tab');
     if (!tab || !draggingTaskId) return;
     e.preventDefault();
     tab.classList.remove('drop-target');
     moveTaskToList(draggingTaskId, tab.dataset.listId);
   });
+
+  function getListDragAfterElement(container, y) {
+    const els = [...container.querySelectorAll('.list-tab:not(.dragging)')];
+    return els.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) return { offset, element: child };
+      return closest;
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
 
   function moveTaskToList(taskId, targetListId) {
     if (targetListId === selectedListId) return; // dropped on its own list, nothing to do
@@ -365,6 +431,25 @@
   });
 
   board.addEventListener('click', e => {
+    if (e.target.closest('[data-sort-btn]')) {
+      sortMode = sortMode === 'manual' ? 'due-asc' : sortMode === 'due-asc' ? 'due-desc' : 'manual';
+      localStorage.setItem(LS_SORT, sortMode);
+      renderBoard();
+      return;
+    }
+
+    if (e.target.closest('[data-due-soon-toggle]')) {
+      dueSoonPopoverOpen = !dueSoonPopoverOpen;
+      renderBoard();
+      if (dueSoonPopoverOpen) {
+        requestAnimationFrame(() => {
+          const input = board.querySelector('[data-due-soon-input]');
+          if (input) { input.focus(); input.select(); }
+        });
+      }
+      return;
+    }
+
     if (e.target.matches('[data-clear-complete]')) {
       const list = getSelectedList();
       const completedCards = [...board.querySelectorAll('.card')].filter(c => {
@@ -474,7 +559,21 @@
     if (e.key === 'Escape' && e.target.closest('[data-edit-form]')) {
       editingTaskId = null;
       render();
+      return;
     }
+    if (e.key === 'Escape' && dueSoonPopoverOpen) {
+      dueSoonPopoverOpen = false;
+      renderBoard();
+      focusDueSoonToggle();
+    }
+  });
+
+  // ---------- Close the due-soon popover on outside click ----------
+  document.addEventListener('click', e => {
+    if (!dueSoonPopoverOpen) return;
+    if (e.target.closest('.popover-wrap')) return;
+    dueSoonPopoverOpen = false;
+    renderBoard();
   });
 
   // ---------- List rename form + blur handling ----------
@@ -570,6 +669,16 @@
   }
 
   // ---------- Rendering ----------
+  function getDisplayTasks(list) {
+    if (sortMode === 'manual') return list.tasks;
+    const withDate = list.tasks.filter(t => t.dueDate);
+    const withoutDate = list.tasks.filter(t => !t.dueDate);
+    withDate.sort((a, b) => sortMode === 'due-asc'
+      ? a.dueDate.localeCompare(b.dueDate)
+      : b.dueDate.localeCompare(a.dueDate));
+    return [...withDate, ...withoutDate];
+  }
+
   function render() {
     renderLists();
     renderBoard();
@@ -587,6 +696,7 @@
       li.setAttribute('aria-selected', isActive ? 'true' : 'false');
       li.setAttribute('aria-controls', 'board-panel');
       li.tabIndex = isActive ? 0 : -1;
+      li.draggable = !isRenaming;
       if (list.id === newTabId) li.classList.add('tab-enter');
 
       if (isRenaming) {
@@ -656,11 +766,20 @@
       <h2></h2>
       <div class="meta">
         <span data-count></span>
-        <label class="due-soon-control">
-          <span>highlight due within</span>
-          <input type="number" min="0" max="30" step="1" data-due-soon-input value="${dueSoonDays}" aria-label="Highlight tasks due within this many days" />
-          <span>days</span>
-        </label>
+        <div class="tool-group">
+          <button class="icon-toggle-btn${sortMode !== 'manual' ? ' active' : ''}" data-sort-btn type="button" title="${SORT_TITLE[sortMode]}" aria-label="${SORT_TITLE[sortMode]}">${SORT_ICON[sortMode]}</button>
+          <div class="popover-wrap">
+            <button class="icon-toggle-btn${dueSoonPopoverOpen ? ' active' : ''}" data-due-soon-toggle type="button" title="Due-soon highlight settings" aria-label="Due-soon highlight settings" aria-haspopup="true" aria-expanded="${dueSoonPopoverOpen}">⚙</button>
+            ${dueSoonPopoverOpen ? `
+            <div class="popover" data-due-soon-popover role="dialog" aria-label="Due-soon highlight settings">
+              <label class="popover-row">
+                <span>Highlight due within</span>
+                <input type="number" min="0" max="30" step="1" data-due-soon-input value="${dueSoonDays}" aria-label="Highlight tasks due within this many days" />
+                <span>days</span>
+              </label>
+            </div>` : ''}
+          </div>
+        </div>
         <button class="text-btn danger" data-delete-list type="button">delete this list</button>
       </div>
     `;
@@ -707,7 +826,8 @@
       empty.textContent = 'nothing pinned yet — add the first thing above';
       cardsEl.appendChild(empty);
     } else {
-      list.tasks.forEach((task, idx) => cardsEl.appendChild(buildCard(task, idx, list.tasks.length)));
+      const displayTasks = getDisplayTasks(list);
+      displayTasks.forEach((task, idx) => cardsEl.appendChild(buildCard(task, idx, displayTasks.length)));
     }
     inner.appendChild(cardsEl);
 
@@ -735,6 +855,7 @@
     const deleteBtn = frag.querySelector('[data-delete-btn]');
 
     card.dataset.taskId = task.id;
+    card.draggable = sortMode === 'manual';
     if (task.id === justAddedTaskId) card.classList.add('card-enter');
 
     checkbox.id = 'chk-' + task.id;

@@ -594,7 +594,7 @@
   // ---------- Drag & drop reorder ----------
   board.addEventListener('dragstart', e => {
     const card = e.target.closest('.card');
-    if (card) {
+    if (card && card.draggable) {
       card.classList.add('dragging');
       draggingTaskId = card.dataset.taskId;
       e.dataTransfer.effectAllowed = 'move';
@@ -614,8 +614,27 @@
     e.preventDefault();
     const dragging = board.querySelector('.dragging');
     if (!dragging) return;
-    const after = getDragAfterElement(cardsEl, e.clientY);
-    if (after == null) cardsEl.appendChild(dragging);
+
+    if (sortMode === 'manual') {
+      const after = getDragAfterElement(cardsEl, e.clientY);
+      if (after == null) cardsEl.appendChild(dragging);
+      else cardsEl.insertBefore(dragging, after);
+      return;
+    }
+
+    // While a due-date sort is active, only allow reordering among cards
+    // that share the exact same due date as the one being dragged — this
+    // breaks ties without disturbing the overall date order.
+    const list = getSelectedList();
+    const draggedTask = list && list.tasks.find(t => t.id === draggingTaskId);
+    if (!draggedTask || !draggedTask.dueDate) return;
+    const sameDateCards = [...cardsEl.querySelectorAll('.card:not(.dragging)')].filter(c => {
+      const t = list.tasks.find(tt => tt.id === c.dataset.taskId);
+      return t && t.dueDate === draggedTask.dueDate;
+    });
+    if (sameDateCards.length === 0) return;
+    const after = closestAfterElement(sameDateCards, e.clientY);
+    if (after == null) sameDateCards[sameDateCards.length - 1].after(dragging);
     else cardsEl.insertBefore(dragging, after);
   });
   board.addEventListener('drop', e => {
@@ -623,19 +642,60 @@
     const cardsEl = board.querySelector('.cards');
     if (!cardsEl) return;
     const list = getSelectedList();
+
+    if (sortMode !== 'manual') {
+      const draggedTask = list.tasks.find(t => t.id === draggingTaskId);
+      if (draggedTask && draggedTask.dueDate) {
+        const orderedIdsForDate = [...cardsEl.querySelectorAll('.card')]
+          .map(c => c.dataset.taskId)
+          .filter(id => {
+            const t = list.tasks.find(tt => tt.id === id);
+            return t && t.dueDate === draggedTask.dueDate;
+          });
+        reorderTiedGroup(list, orderedIdsForDate);
+        persist();
+      }
+      return;
+    }
+
     const orderedIds = [...cardsEl.querySelectorAll('.card')].map(c => c.dataset.taskId);
     list.tasks.sort((a, b) => orderedIds.indexOf(a.id) - orderedIds.indexOf(b.id));
     persist();
   });
 
-  function getDragAfterElement(container, y) {
-    const els = [...container.querySelectorAll('.card:not(.dragging)')];
+  // Reorders just the tasks in `orderedIds` (all sharing one due date) to match
+  // that new relative order, leaving every other task's position untouched.
+  function reorderTiedGroup(list, orderedIds) {
+    const groupSet = new Set(orderedIds);
+    const byId = {};
+    list.tasks.forEach(t => { if (groupSet.has(t.id)) byId[t.id] = t; });
+    const newTasks = [];
+    let inserted = false;
+    list.tasks.forEach(t => {
+      if (groupSet.has(t.id)) {
+        if (!inserted) {
+          orderedIds.forEach(id => newTasks.push(byId[id]));
+          inserted = true;
+        }
+      } else {
+        newTasks.push(t);
+      }
+    });
+    list.tasks = newTasks;
+  }
+
+  function closestAfterElement(els, y) {
     return els.reduce((closest, child) => {
       const box = child.getBoundingClientRect();
       const offset = y - box.top - box.height / 2;
       if (offset < 0 && offset > closest.offset) return { offset, element: child };
       return closest;
     }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
+  function getDragAfterElement(container, y) {
+    const els = [...container.querySelectorAll('.card:not(.dragging)')];
+    return closestAfterElement(els, y);
   }
 
   // ---------- Exit animation helper ----------
@@ -827,7 +887,9 @@
       cardsEl.appendChild(empty);
     } else {
       const displayTasks = getDisplayTasks(list);
-      displayTasks.forEach((task, idx) => cardsEl.appendChild(buildCard(task, idx, displayTasks.length)));
+      const dateCounts = {};
+      displayTasks.forEach(t => { if (t.dueDate) dateCounts[t.dueDate] = (dateCounts[t.dueDate] || 0) + 1; });
+      displayTasks.forEach((task, idx) => cardsEl.appendChild(buildCard(task, idx, displayTasks.length, dateCounts)));
     }
     inner.appendChild(cardsEl);
 
@@ -842,7 +904,7 @@
     renderCounts();
   }
 
-  function buildCard(task, index, total) {
+  function buildCard(task, index, total, dateCounts) {
     const frag = taskCardTemplate.content.cloneNode(true);
     const card = frag.querySelector('.card');
     const checkbox = frag.querySelector('input[type="checkbox"]');
@@ -855,7 +917,11 @@
     const deleteBtn = frag.querySelector('[data-delete-btn]');
 
     card.dataset.taskId = task.id;
-    card.draggable = sortMode === 'manual';
+    const hasTieToBreak = task.dueDate && dateCounts && dateCounts[task.dueDate] > 1;
+    card.draggable = sortMode === 'manual' || hasTieToBreak;
+    if (sortMode !== 'manual' && hasTieToBreak) {
+      card.title = 'Drag to reorder tasks due on this date';
+    }
     if (task.id === justAddedTaskId) card.classList.add('card-enter');
 
     checkbox.id = 'chk-' + task.id;
